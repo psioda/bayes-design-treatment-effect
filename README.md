@@ -2,13 +2,13 @@
 SAS programs used for Biostatistics manuscript "Bayesian Clinical Trial Design Using Historical Data that Inform the Treatment Effect".
 
 
-==============================================================
+==============
 PART A: Design Application with Proportional Hazards Model 
-==============================================================
+==============
 
-============================
+====
 SAS Programs and Macros 
-============================
+====
 The following programs can be used to reproduce the simulation results for the case study application in the paper. The above programs are named 
 in the order they MUST be run. The output from one step is used as input for the next step. Each of the SAS programs has a header that describes the
 purpose of the program in the overall design process. If the programs are run as given (apart from updating paths to folders), they should reproduce the
@@ -110,9 +110,9 @@ The SAS programs above make use of the following SAS macros which are described 
 The SAS macro programs contain header documentation that gives more detail on the purpose of the macro and the macro variables required by the macro. 
 
 
-============================
+====
 Directory Structure
-============================
+====
 
 The following directory structure is assumed for the tools (as written) and a brief description of the contents of folders is given:
 
@@ -147,9 +147,9 @@ The following directory structure is assumed for the tools (as written) and a br
 
 In each program there is a macro variable named ROOT that stores the users root directory path. That path must be changed to match the users chosen directory for the SAS programs to work.
 
-==============================
+======
 Parallel Execution of Programs
-==============================
+======
 
 Programs [3] and [5] above are designed to be run as array jobs on a computing cluster to perform simulation studies over a grid of design inputs in parallel fashion. For
 example, the authors use the following array script for a SLURM scheduler on a computing cluster for program [3]:
@@ -182,13 +182,13 @@ programs [3] and [5] need to be run (each using a different value of SYSPARM) wi
 number of simulations (different null sampling priors, alternative sampling priors, many possible number of events, many possible a0 values) and so using a cluster to run the programs many
 times in parallel was useful.
 
-==============================================================
+==============
 PART B: Design Simulations with Simple Normal Model 
-==============================================================
+==============
 
-============================
+====
 Directory Structure
-============================
+====
 
 All programs for the normal model simulation expect the following directory structure: 
 
@@ -201,9 +201,9 @@ All programs for the normal model simulation expect the following directory stru
 
 In each program there is a macro variable named ROOT that stores the users root directory path. That path must be changed to match the users chosen directory for the SAS programs to work.
 
-============================
+====
 Historical Datasets
-============================
+====
 Simulated Historical Datasets
 All 5 stimulated historical datasets used in the paper are included in the subfolder named “HIST-DAT”. Users should note that the historical datasets are 
 named “HIST_X” where X is an integer from 1 to 5. Please be aware of the following mapping between datasets and informativeness of the data;
@@ -217,9 +217,9 @@ HIST_5 - posterior probability that $\gamma<0$ = 0.999
 Thus, the datasets are not named in descending order of informativeness.
 
 
-============================
+====
 Description of SAS Programs
-============================
+====
 SAS Programs that reproduce the simulation results presented in the manuscript are provided in the repo and are listed below:
 
 [1] PP1.SAS - Estimates the Bayesian type I error rate and power using truncated sampling priors (K=2) and based on the 
