@@ -1,0 +1,246 @@
+1                                                          The SAS System                             19:43 Tuesday, January 9, 2018
+
+NOTE: Copyright (c) 2002-2012 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software 9.4 (TS1M3) 
+      Licensed to UNIVERSITY OF NORTH CAROLINA CHAPEL HILL - SFA T&R, Site 70084073.
+NOTE: This session is executing on the Linux 3.10.0-693.5.2.el7.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Updated analytical products:
+      
+      SAS/STAT 14.1
+      SAS/ETS 14.1
+      SAS/OR 14.1
+      SAS/IML 14.1
+      SAS/QC 14.1
+
+NOTE: Additional host information:
+
+ Linux LIN X64 3.10.0-693.5.2.el7.x86_64 #1 SMP Fri Oct 13 10:46:25 EDT 2017 x86_64 Red Hat Enterprise Linux Server release 7.4 
+      (Maipo) 
+
+You are running SAS 9. Some SAS 8 files will be automatically converted 
+by the V9 engine; others are incompatible.  Please see 
+http://support.sas.com/rnd/migration/planning/platform/64bit.html
+
+PROC MIGRATE will preserve current SAS file attributes and is 
+recommended for converting all your SAS libraries from any 
+SAS 8 release to SAS 9.  For details and examples, please see
+http://support.sas.com/rnd/migration/index.html
+
+
+This message is contained in the SAS news file, and is presented upon
+initialization.  Edit the file "news" in the "misc/base" directory to
+display site-specific news and information in the program log.
+The command line option "-nonews" will prevent this display.
+
+
+
+
+NOTE: SAS initialization used:
+      real time           0.12 seconds
+      cpu time            0.02 seconds
+      
+1          /*
+2          Program Name: 01_simulation_controls_null.sas
+3          Program Creator: Matthew Psioda;
+4          
+5          This SAS program generates the first stage simulation settings that were explored in the SDD example based on the e1684
+5        ! dataset that is
+6          presented in the paper. Initially, we needed to determine the maximum value of a0 for each number of events in the set
+6        ! under
+7          consideration (250 events to 850 events with a 10 event step size).
+8          
+9          This program generates a dataset that contains an large array combinations of target number of events and a0 values in a
+9        ! SAS dataset and
+10         assigns them to different compute node IDs for parallel simulations on a cluster; The NODE_IDX variable identifies the
+10       ! compute
+11         node by number. Thus, if a user is going to use 600 compute nodes for computation as we did, NODE_IDX will take values
+11       ! between 1
+2                                                          The SAS System                             19:43 Tuesday, January 9, 2018
+
+12         and 600. Using this number of compute nodes is not necessary but will result in fast completion of simulations if such
+13         resources are available.
+14         
+15         The created SAS dataset of simulation settings is written to the location: &root./data/simulation_controls;
+16         The dataset is named controls.simulation_controls_null and contains the following variables:
+17         [1] node_idx – Integer value that identifies the compute node to be used for a given set of simulations;
+18         [2] nPerLoop – number of datasets to simulate in a given loop cycle – this number cannot be too large due to system
+19             resources. A value of 500 is used in the current setup. The more datasets that are simulated at once, the more
+20         	memory or disk space needs to be available to SAS to process them;
+21         [3] sp – name of the dataset that stores the sampling prior results for the given simulation setting;
+22         [4] shareBLH – indicator variable for whether or not all parameters are shared between model (must be zero in current
+22       ! software);
+23         [5] nuTarget – desired number of events in the simulated new trials;
+24         [6] a0 – value of a0 for the power prior;
+25         [7] inner_idx – observation counter for simulation settings to be performed by a given compute node;
+26         [8] seed – random number seed for new trial data generation;
+27         [9] parmSampleSeed – random number seed for drawing samples from discrete approximation to the sampling priors;
+28         
+29         The dataset created by this program is stored in the folder: &root./data/simulation_controls (CONTROLS SAS library)
+30         */
+31         
+32         %let root     = /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment;
+33         %let contPath = &root./data/simulation_controls;
+34         
+35         proc datasets library=work noprint kill;
+35       !                                          run;
+
+35       !                                               quit;
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.32 seconds
+      cpu time            0.02 seconds
+      
+
+36         option compress=Yes;
+37         
+38         
+39         libname _all_ clear;
+40         libname controls "&contPath.";
+NOTE: Libref CONTROLS was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/simulation_controls
+41         
+42         
+43         %let number_of_nodes = 600; ** number of compute nodes on cluster;
+44         %let nPerLoop        = 500; ** number of simulated datasets per simulation loop;
+45         %let nLoops          = 200; ** number of simulation loops;
+46         
+47         ** the design operating characteristics will be estimated based on &nPerLoop * &nLoops simulation studies;
+48         
+49         data controls.simulation_controls_null;
+50          nPerLoop = &nPerLoop.;
+51          nLoops   = &nLoops.;
+52          idx      = 1;
+53         
+54         
+55          length sp $30.;
+56          do sp        = "sPrior.default_null","sPrior.freq_null","sPrior.general_null"; ** null sampling priors to explore;
+3                                                          The SAS System                             19:43 Tuesday, January 9, 2018
+
+57          do shareBLH  = 0 to 0;                                                         ** indicator for whether or not nuisance
+57       ! parameters are shared;
+58          do nuTarget  = 280 to 850 by 10;                                               ** possible sample size (number of
+58       ! events);
+59          do a0        = 0.00,0.01,0.02,0.03,0.04,0.05,0.075 to 1.00 by 0.025;           ** possible values for a_0;
+60         
+61         
+62           output;  idx + 1;
+63         
+64          end;
+65          end;
+66          end;
+67          end;
+68         
+69          call symput('num_idx',strip(put(idx-1,best.)));
+70          drop idx;
+71         run;
+
+NOTE: The data set CONTROLS.SIMULATION_CONTROLS_NULL has 7656 observations and 6 variables.
+NOTE: Compressing data set CONTROLS.SIMULATION_CONTROLS_NULL decreased size by 0.00 percent. 
+      Compressed is 9 pages; un-compressed would require 9 pages.
+NOTE: DATA statement used (Total process time):
+      real time           0.09 seconds
+      cpu time            0.01 seconds
+      
+
+72         proc sort; by sp shareBLH nuTarget a0; run;
+
+NOTE: There were 7656 observations read from the data set CONTROLS.SIMULATION_CONTROLS_NULL.
+NOTE: The data set CONTROLS.SIMULATION_CONTROLS_NULL has 7656 observations and 6 variables.
+NOTE: Compressing data set CONTROLS.SIMULATION_CONTROLS_NULL decreased size by 0.00 percent. 
+      Compressed is 9 pages; un-compressed would require 9 pages.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.06 seconds
+      cpu time            0.02 seconds
+      
+
+73         %put NO%upcase(te):There will be &=num_idx different scenarios considered in this simulation;
+NOTE:There will be NUM_IDX=7656 different scenarios considered in this simulation
+74         
+75         ** this DATA step allocations the different simulations to the compute nodes;
+76         data node_id;
+77          stop = 0;
+78          i=0;
+79          do outer_idx = 1 to 20000;
+80          do node_idx = 1 to &number_of_nodes.;
+81            i+1;
+82            output;
+83            if i = &num_idx. then stop;
+84          end;
+85          end;
+86          keep node_idx;
+87         run;
+
+NOTE: Compression was disabled for data set WORK.NODE_ID because compression overhead would increase the size of the data set.
+NOTE: The data set WORK.NODE_ID has 7656 observations and 1 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+4                                                          The SAS System                             19:43 Tuesday, January 9, 2018
+
+      cpu time            0.00 seconds
+      
+
+87       !      proc sort; by node_idx; run;
+
+NOTE: There were 7656 observations read from the data set WORK.NODE_ID.
+NOTE: The data set WORK.NODE_ID has 7656 observations and 1 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+88         
+89         data controls.simulation_controls_null;
+90          merge node_id controls.simulation_controls_null ;
+91         run;
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 7656 observations read from the data set WORK.NODE_ID.
+NOTE: There were 7656 observations read from the data set CONTROLS.SIMULATION_CONTROLS_NULL.
+NOTE: The data set CONTROLS.SIMULATION_CONTROLS_NULL has 7656 observations and 7 variables.
+NOTE: Compressing data set CONTROLS.SIMULATION_CONTROLS_NULL decreased size by 10.00 percent. 
+      Compressed is 9 pages; un-compressed would require 10 pages.
+NOTE: DATA statement used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+      
+
+92         
+93         
+94         data controls.simulation_controls_null(index=(node_idx));
+95          set controls.simulation_controls_null;
+96          call streaminit(123512);
+97         
+98          ** two random number seets are needed for each simulation in order
+99             to ensure reproducibility and they are generated here;
+100         do inner_idx = 1 to nLoops;
+101           seed           = round(1 + rand('uniform')*2**30);
+102           parmSampleSeed = round(1 + rand('uniform')*2**30);
+103            output;
+104         end;
+105         drop nLoops;
+106        run;
+
+NOTE: There were 7656 observations read from the data set CONTROLS.SIMULATION_CONTROLS_NULL.
+NOTE: The data set CONTROLS.SIMULATION_CONTROLS_NULL has 1531200 observations and 9 variables.
+NOTE: Compressing data set CONTROLS.SIMULATION_CONTROLS_NULL decreased size by 14.04 percent. 
+      Compressed is 1935 pages; un-compressed would require 2251 pages.
+NOTE: DATA statement used (Total process time):
+      real time           1.64 seconds
+      cpu time            1.36 seconds
+      
+
+107        
+108        
+109        /*  proc contents data = controls.simulation_controls_null ; run;  */
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+5                                                          The SAS System                             19:43 Tuesday, January 9, 2018
+
+NOTE: The SAS System used:
+      real time           2.45 seconds
+      cpu time            1.46 seconds
+      

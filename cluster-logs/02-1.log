@@ -1,0 +1,1418 @@
+1                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: Copyright (c) 2002-2012 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software 9.4 (TS1M3) 
+      Licensed to UNIVERSITY OF NORTH CAROLINA CHAPEL HILL - SFA T&R, Site 70084073.
+NOTE: This session is executing on the Linux 3.10.0-693.5.2.el7.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Updated analytical products:
+      
+      SAS/STAT 14.1
+      SAS/ETS 14.1
+      SAS/OR 14.1
+      SAS/IML 14.1
+      SAS/QC 14.1
+
+NOTE: Additional host information:
+
+ Linux LIN X64 3.10.0-693.5.2.el7.x86_64 #1 SMP Fri Oct 13 10:46:25 EDT 2017 x86_64 Red Hat Enterprise Linux Server release 7.4 
+      (Maipo) 
+
+You are running SAS 9. Some SAS 8 files will be automatically converted 
+by the V9 engine; others are incompatible.  Please see 
+http://support.sas.com/rnd/migration/planning/platform/64bit.html
+
+PROC MIGRATE will preserve current SAS file attributes and is 
+recommended for converting all your SAS libraries from any 
+SAS 8 release to SAS 9.  For details and examples, please see
+http://support.sas.com/rnd/migration/index.html
+
+
+This message is contained in the SAS news file, and is presented upon
+initialization.  Edit the file "news" in the "misc/base" directory to
+display site-specific news and information in the program log.
+The command line option "-nonews" will prevent this display.
+
+
+
+
+NOTE: SAS initialization used:
+      real time           0.14 seconds
+      cpu time            0.04 seconds
+      
+1          /*
+2          Program Name: 02_sampling_priors.sas
+3          Program Creator: Matthew Psioda;
+4          
+5          This SAS program can be run to construct discrete approximations to the sampling priors used in the paper.
+6          
+7          The program first uses the %COLLAPSE macro to collapse the subject-level e1684 dataset to a dataset of
+8          sufficient statistics. The model fitting SAS macros (%FIT_MCMC and %FIT_APPROX) expect this format. This
+9          data reduction allows the model to be fit using PROC GENMOD using the connection between PH regression
+10         and Poisson regression.
+11         
+12         Using the reduced historical dataset, the %FIT_MCMC macro is repeatedly called and the results are
+13         post-processed. This sas program includes the macro definition for the %EST_SAMP_PRIOR macro. The
+14         %EST_SAMP_PRIOR is nothing more than a wrapper to the %FIT_MCMC macro that does some post-processing
+15         of the results.
+16         
+2                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+17         This program generates the discrete approximations for the default, truncated, and point mass
+18         sampling priors that were used in the paper. The macro calls that generate the discrete approximations
+19         begin just after the macro definition for the %EST_SAMP_PRIOR.
+20         
+21         This program reads in the raw data from the folder &root./data/raw_data (RAW SAS library)
+22         and writes out the sampling prior datasets to the folder &root./data/sampling_priors (RES SAS library);
+23         
+24         The program reads in the %COLLAPSE and %FIT_MCMC macros from the folder &root./macros;
+25         
+26         */
+27         
+28         
+29         proc datasets library=work noprint kill;
+29       !                                          run;
+
+29       !                                               quit;
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.06 seconds
+      cpu time            0.02 seconds
+      
+
+30         
+31         
+32         %let root        = /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment;
+33         %let rawDataPath = &root./data/raw_data;
+34         %let resDataPath = &root./data/sampling_priors;
+35         %let macroPath   = &root./macros;
+36         
+37         %include "&macroPath./collapse.sas";
+153        %include "&macroPath./fit_mcmc.sas";
+301        
+302        libname _all_ clear;
+303        libname raw "&rawDataPath.";
+NOTE: Libref RAW was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/raw_data
+304        libname res "&resDatapath.";
+NOTE: Libref RES was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/sampling_priors
+305        
+306        data stage4;
+307         set raw.e1684_stage4;
+308        run;
+
+NOTE: There were 167 observations read from the data set RAW.E1684_STAGE4.
+NOTE: The data set WORK.STAGE4 has 167 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.01 seconds
+      
+
+309        
+310        
+311        %let dsIn         = stage4;                   ** name of dataset to collapse to sufficient statistics;
+312        %let dsOut        = raw.stage4_condensed;     ** name of dataset to write out;
+313        
+3                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+314        %let writeBreaks  = 1;                        ** indicator of whether or not dataset should be created to store hazard
+314      ! change points;
+315        %let dsBreaks     = raw.hazard_breaks;        ** name of dataset that will contain hazard break points;
+316        
+317        
+318        %let stratLevels  = 2;                         ** number of strata;
+319        %let fitHazComp   = 4 | 3;                     ** number of hazard components in each stratum;
+320        %let fitHazBreaks = 0.15342 0.46301 2.29589 |
+321                            0.59726 2.87397;           ** hazard change points;
+322        
+323        %collapse;
+
+NOTE: The data set WORK.__BREAKS__ has 2 observations and 7 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 167 observations read from the data set WORK.STAGE4.
+NOTE: The data set WORK.__TEMPDATA__ has 167 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 167 rows and 12 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.14 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 167 observations read from the data set WORK.__TEMPDATA__.
+NOTE: The data set WORK.__TEMPDATA__ has 402 observations and 16 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 402 observations read from the data set WORK.__TEMPDATA__.
+NOTE: The data set RAW.STAGE4_CONDENSED has 14 observations and 6 variables.
+NOTE: PROCEDURE MEANS used (Total process time):
+      real time           0.08 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: The data set RAW.HAZARD_BREAKS has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: Deleting WORK.__BREAKS__ (memtype=DATA).
+4                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+324        
+325        
+326        
+327        
+328        
+329        /* empty historical dataste for use with the %FIT_MCMC macro; */
+330        data hist; set &dsOut.(obs=0); run;
+
+NOTE: There were 0 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: The data set WORK.HIST has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+331        
+332        
+333        
+334        
+335        
+336        /* This macro post-processes results for the %FIT_MCMC macro
+337           The %FIT_MCMC macro is called within this post-processing macro
+338        */
+339        %macro est_samp_prior;
+340        %fit_mcmc;
+341        
+342        proc sort data = &dsOutParmEst._summary sortseq=linguistic(numeric_collation=on) out = res.&dsOutParmEst._summary;
+343         by parameter;
+344        run;
+345        
+346        data &dsOutParmEst.;
+347         set &dsOutParmEst.(drop=HR postProb log: iteration simStudy iteration);
+348          sort = rand('uniform');
+349        run; proc sort data=&dsOutParmEst. out=&dsOutParmEst.(drop=sort); by sort; run;
+350        
+351        
+352        
+353        ** count number of strata;
+354        %let numStrat = %eval(%sysfunc(count(&fithazComp,|))+1);
+355        
+356        ** count maximum number of compoents;
+357        %let maxComp = 0;
+358        %do s = 1 %to &numStrat.;
+359          %if %eval(&maxComp < %scan(&fitHazComp.,&s,|)) %then %let maxcomp = %scan(&fitHazComp.,&s,|);
+360        %end;
+361        %put maxcomp = &maxcomp.;
+362        
+363        data temp;
+364          %let var = 1;
+365         %do s = 1 %to &numStrat.;
+366         %do i = 1 %to &maxComp.;
+5                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+367          h&s.&i.  = .;
+368          %let var = %eval(&var + 1);
+369         %end;
+370         %end;
+371        
+372        data &dsOutParmEst.;
+373         set &dsOutParmEst.;
+374        
+375         rename gamma = b1
+376        
+377                %let var = 1;
+378                %do s = 1 %to &numStrat.;
+379                %do i = 1 %to  %scan(&fitHazComp.,&s,|);
+380                  lambda&var. = h&s.&i.
+381                  %let var = %eval(&var + 1);
+382                %end;
+383                %end;;
+384         run;
+385        
+386         data res.&dsOutParmEst.;
+387          set temp(in=a) &dsOutParmEst.;
+388           if not a;
+389         run;
+390        
+391        %mend est_samp_prior;
+392        
+393        
+394        ** initial priors;
+395        %let gammaPrior   = normal(0,var=1e5);
+396        %let lambdaPrior  = gamma(1e-5,iscale=1e-5);
+397        
+398        ** new and historical sets to analyze;
+399        %let dsSim        = raw.stage4_condensed;
+400        %let dsHist       = hist;
+401        
+402        %let shareBLH     = 1;      ** indicator of whether nuisance parameters are shared;
+403        %let a0           = 0.00;   ** a_0 value for partial-borrowing power prior;
+404        %let dsOutDIC     = DIC;    ** output dataset to store model DIC estimate;
+405        
+406        
+407        %let seedValue    = 325211;           ** seed for PROC MCMC;
+408        %let dsOutParmEst = e1684_posterior;  ** name of dataset of posterior samples;
+409        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.; ** PROC MCMC options;
+410        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+6                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.E1684_POSTERIOR_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.E1684_POSTERIOR_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.E1684_POSTERIOR has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:36.62
+      cpu time            2:36.12
+      
+7                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_INTERVALS.
+NOTE: The data set WORK.E1684_POSTERIOR_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_SUMMARY.
+NOTE: The data set WORK.E1684_POSTERIOR_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.E1684_POSTERIOR_SUMMARY created, with 10 rows and 15 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_SUMMARY.
+NOTE: The data set WORK.E1684_POSTERIOR_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_SUMMARY.
+NOTE: The data set WORK.E1684_POSTERIOR_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.E1684_POSTERIOR_SUMMARY.
+NOTE: The data set RES.E1684_POSTERIOR_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.28 seconds
+8                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.E1684_POSTERIOR.
+NOTE: The data set WORK.E1684_POSTERIOR has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.E1684_POSTERIOR.
+NOTE: The data set WORK.E1684_POSTERIOR has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.08 seconds
+      cpu time            0.09 seconds
+      
+
+maxcomp = 4
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.E1684_POSTERIOR.
+NOTE: The data set WORK.E1684_POSTERIOR has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.E1684_POSTERIOR.
+NOTE: The data set RES.E1684_POSTERIOR has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.02 seconds
+      
+
+411        
+412        proc means data = res.E1684_posterior noprint nway;
+413         var h: b:;
+414         output out = res.point_mass_alt(drop=_:) mean= ;
+415        run;
+
+NOTE: There were 100000 observations read from the data set RES.E1684_POSTERIOR.
+NOTE: The data set RES.POINT_MASS_ALT has 1 observations and 9 variables.
+NOTE: PROCEDURE MEANS used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.04 seconds
+      
+
+416        
+9                                                          The SAS System                             19:48 Tuesday, January 9, 2018
+
+417        %let seedValue    = 624562;
+418        %let dsOutParmEst = default_null;
+419        %let gammaPrior   = normal(0,var=1e5,lower=0);
+420        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.;
+421        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+10                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      cpu time            0.00 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.DEFAULT_NULL_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.DEFAULT_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.DEFAULT_NULL has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:36.94
+      cpu time            2:36.87
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_INTERVALS.
+NOTE: The data set WORK.DEFAULT_NULL_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_SUMMARY.
+NOTE: The data set WORK.DEFAULT_NULL_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.DEFAULT_NULL_SUMMARY created, with 10 rows and 15 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_SUMMARY.
+NOTE: The data set WORK.DEFAULT_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_SUMMARY.
+NOTE: The data set WORK.DEFAULT_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+11                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_NULL_SUMMARY.
+NOTE: The data set RES.DEFAULT_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_NULL.
+NOTE: The data set WORK.DEFAULT_NULL has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_NULL.
+NOTE: The data set WORK.DEFAULT_NULL has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.08 seconds
+      cpu time            0.08 seconds
+      
+
+maxcomp = 4
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_NULL.
+NOTE: The data set WORK.DEFAULT_NULL has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_NULL.
+NOTE: The data set RES.DEFAULT_NULL has 100000 observations and 9 variables.
+12                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.02 seconds
+      
+
+422        
+423        %let seedValue    = 684686;
+424        %let dsOutParmEst = general_null;
+425        %let gammaPrior   = normal(0,var=1e5,lower=0,upper=0.08215);
+426        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.;
+427        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+13                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.GENERAL_NULL_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.GENERAL_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.GENERAL_NULL has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:38.82
+      cpu time            2:38.80
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_INTERVALS.
+NOTE: The data set WORK.GENERAL_NULL_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_SUMMARY.
+NOTE: The data set WORK.GENERAL_NULL_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.GENERAL_NULL_SUMMARY created, with 10 rows and 15 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_SUMMARY.
+NOTE: The data set WORK.GENERAL_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+14                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_SUMMARY.
+NOTE: The data set WORK.GENERAL_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_NULL_SUMMARY.
+NOTE: The data set RES.GENERAL_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_NULL.
+NOTE: The data set WORK.GENERAL_NULL has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_NULL.
+NOTE: The data set WORK.GENERAL_NULL has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.08 seconds
+      cpu time            0.09 seconds
+      
+
+maxcomp = 4
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_NULL.
+NOTE: The data set WORK.GENERAL_NULL has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.03 seconds
+15                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_NULL.
+NOTE: The data set RES.GENERAL_NULL has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.02 seconds
+      
+
+428        
+429        %let seedValue    = 8658654;
+430        %let dsOutParmEst = default_alt;
+431        %let gammaPrior   = normal(0,var=1e5,upper=0);
+432        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.;
+433        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+16                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.DEFAULT_ALT_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.DEFAULT_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.DEFAULT_ALT has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:39.04
+      cpu time            2:39.02
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_INTERVALS.
+NOTE: The data set WORK.DEFAULT_ALT_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_SUMMARY.
+NOTE: The data set WORK.DEFAULT_ALT_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.DEFAULT_ALT_SUMMARY created, with 10 rows and 15 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+17                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_SUMMARY.
+NOTE: The data set WORK.DEFAULT_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_SUMMARY.
+NOTE: The data set WORK.DEFAULT_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.DEFAULT_ALT_SUMMARY.
+NOTE: The data set RES.DEFAULT_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_ALT.
+NOTE: The data set WORK.DEFAULT_ALT has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_ALT.
+NOTE: The data set WORK.DEFAULT_ALT has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.07 seconds
+      cpu time            0.08 seconds
+      
+
+maxcomp = 4
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+18                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_ALT.
+NOTE: The data set WORK.DEFAULT_ALT has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.DEFAULT_ALT.
+NOTE: The data set RES.DEFAULT_ALT has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.03 seconds
+      
+
+434        
+435        %let seedValue    = 7646442;
+436        %let dsOutParmEst = general_alt;
+437        %let gammaPrior   = normal(0,var=1e5,lower=-0.48997,upper=-0.04107);
+438        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.;
+439        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+19                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.GENERAL_ALT_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.GENERAL_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.GENERAL_ALT has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:41.18
+      cpu time            2:41.15
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_INTERVALS.
+NOTE: The data set WORK.GENERAL_ALT_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_SUMMARY.
+NOTE: The data set WORK.GENERAL_ALT_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: Table WORK.GENERAL_ALT_SUMMARY created, with 10 rows and 15 columns.
+20                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_SUMMARY.
+NOTE: The data set WORK.GENERAL_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_SUMMARY.
+NOTE: The data set WORK.GENERAL_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.GENERAL_ALT_SUMMARY.
+NOTE: The data set RES.GENERAL_ALT_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_ALT.
+NOTE: The data set WORK.GENERAL_ALT has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_ALT.
+NOTE: The data set WORK.GENERAL_ALT has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.07 seconds
+      cpu time            0.09 seconds
+      
+
+maxcomp = 4
+
+21                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_ALT.
+NOTE: The data set WORK.GENERAL_ALT has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.GENERAL_ALT.
+NOTE: The data set RES.GENERAL_ALT has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.02 seconds
+      
+
+440        
+441        %let seedValue    = 452426;
+442        %let dsOutParmEst = freq_null;
+443        %let gammaPrior   = normal(0,var=1e-22);
+444        %let mcmcOptions  = nmc=500000 nbi=500 nthin=5 seed=&seedValue. postout=&dsOutParmEst.;
+445        %est_samp_prior;
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 0 observations read from the data set WORK.HIST.
+NOTE: The data set WORK.__TEMPHIST__ has 0 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set RAW.STAGE4_CONDENSED.
+NOTE: There were 0 observations read from the data set WORK.__TEMPHIST__.
+NOTE: The data set WORK.__TEMPDATA__ has 14 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 14 observations read from the data set WORK.__TEMPDATA__.
+22                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: 7 observations with duplicate key values were deleted.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 2 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 7 observations read from the data set WORK.__HAZCOUNTER__.
+NOTE: The data set WORK.__HAZCOUNTER__ has 7 observations and 4 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+NOTE: Table WORK.__TEMPDATA__ created, with 14 rows and 9 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been loaded into memory by the SASFILE statement.
+
+
+NOTE: Tuning the proposal distribution.
+NOTE: Generating the burn-in samples.
+NOTE: Beginning sample generation.
+NOTE: The above message was for the following BY group:
+      simStudy=1
+NOTE: The data set WORK.FREQ_NULL_INTERVALS has 10 observations and 7 variables.
+NOTE: The data set WORK.DIC has 4 observations and 3 variables.
+NOTE: The data set WORK.FREQ_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: The data set WORK.FREQ_NULL has 100000 observations and 15 variables.
+NOTE: PROCEDURE MCMC used (Total process time):
+      real time           2:37.23
+      cpu time            2:37.20
+      
+
+NOTE: The file WORK.__TEMPDATA__.DATA has been closed by the SASFILE statement.
+
+WARNING: No BY statement was specified for a MERGE statement.
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_SUMMARY.
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_INTERVALS.
+NOTE: The data set WORK.FREQ_NULL_SUMMARY has 10 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_SUMMARY.
+NOTE: The data set WORK.FREQ_NULL_SUMMARY has 10 observations and 13 variables.
+23                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.02 seconds
+      
+
+NOTE: Table WORK.FREQ_NULL_SUMMARY created, with 10 rows and 15 columns.
+
+NOTE: PROCEDURE SQL used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_SUMMARY.
+NOTE: The data set WORK.FREQ_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_SUMMARY.
+NOTE: The data set WORK.FREQ_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: Deleting WORK.__TEMPDATA__ (memtype=DATA).
+NOTE: Deleting WORK.__TEMPHIST__ (memtype=DATA).
+NOTE: Deleting WORK.__HAZCOUNTER__ (memtype=DATA).
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 10 observations read from the data set WORK.FREQ_NULL_SUMMARY.
+NOTE: The data set RES.FREQ_NULL_SUMMARY has 10 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.FREQ_NULL.
+NOTE: The data set WORK.FREQ_NULL has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.FREQ_NULL.
+NOTE: The data set WORK.FREQ_NULL has 100000 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+24                                                         The SAS System                             19:48 Tuesday, January 9, 2018
+
+      real time           0.08 seconds
+      cpu time            0.09 seconds
+      
+
+maxcomp = 4
+
+NOTE: The data set WORK.TEMP has 1 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+
+NOTE: There were 100000 observations read from the data set WORK.FREQ_NULL.
+NOTE: The data set WORK.FREQ_NULL has 100000 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+
+
+NOTE: There were 1 observations read from the data set WORK.TEMP.
+NOTE: There were 100000 observations read from the data set WORK.FREQ_NULL.
+NOTE: The data set RES.FREQ_NULL has 100000 observations and 9 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.03 seconds
+      
+
+446        
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+NOTE: The SAS System used:
+      real time           15:52.44
+      cpu time            15:50.63
+      

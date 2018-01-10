@@ -1,0 +1,878 @@
+1                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: Copyright (c) 2002-2012 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software 9.4 (TS1M3) 
+      Licensed to UNIVERSITY OF NORTH CAROLINA CHAPEL HILL - SFA T&R, Site 70084073.
+NOTE: This session is executing on the Linux 3.10.0-693.5.2.el7.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Updated analytical products:
+      
+      SAS/STAT 14.1
+      SAS/ETS 14.1
+      SAS/OR 14.1
+      SAS/IML 14.1
+      SAS/QC 14.1
+
+NOTE: Additional host information:
+
+ Linux LIN X64 3.10.0-693.5.2.el7.x86_64 #1 SMP Fri Oct 13 10:46:25 EDT 2017 x86_64 Red Hat Enterprise Linux Server release 7.4 
+      (Maipo) 
+
+You are running SAS 9. Some SAS 8 files will be automatically converted 
+by the V9 engine; others are incompatible.  Please see 
+http://support.sas.com/rnd/migration/planning/platform/64bit.html
+
+PROC MIGRATE will preserve current SAS file attributes and is 
+recommended for converting all your SAS libraries from any 
+SAS 8 release to SAS 9.  For details and examples, please see
+http://support.sas.com/rnd/migration/index.html
+
+
+This message is contained in the SAS news file, and is presented upon
+initialization.  Edit the file "news" in the "misc/base" directory to
+display site-specific news and information in the program log.
+The command line option "-nonews" will prevent this display.
+
+
+
+
+NOTE: SAS initialization used:
+      real time           0.11 seconds
+      cpu time            0.04 seconds
+      
+1          
+2          /*
+3          Program Name: 06_process_power.sas
+4          Program Creator: Matthew Psioda;
+5          
+6          This SAS program processes the results from the second stage of the simulation
+7          process to identify the optimal design for the set of null and alternative
+8          sampling priors considered.To do this, LOESS methods are used to smooth
+9          the results and to interpolate the ideal values for the target number of events
+10         and for the value of a0.
+11         
+12         The optimal design parameters are written to the location
+13         &root./data/simulation_results/calculate_power (RESULTS SAS library);  The dataset created
+14         is named results.calculated_power. The dataset contains the following variables:
+15         
+16         [ 1] category   – description of null sampling prior used for simulation setting;
+2                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+17         [ 2] alpha_targ – targeted Bayesian type I error rate;
+18         [ 3] nsp        - name of the dataset that stores the null sampling prior results for the given simulation setting;
+19         [ 4] asp        - name of the dataset that stores the alternative sampling prior results for the given simulation setting
+19       ! ;
+20         [ 5] shareBLH   – indicator variable for whether or not all parameters are shared between model (must be
+21                           zero in current software);
+22         [ 6] nuTarget   – desired number of events in the simulated new trials;
+23         [ 7] a0         – value of a0 to use for power prior;
+24         [ 8] power      - estimated bayesian power;
+25         
+26         */
+27         
+28         ods html close;
+29         proc datasets library=work noprint kill;
+29       !                                          run;
+
+29       !                                               quit;
+
+NOTE: PROCEDURE DATASETS used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+
+30         
+31         /*%let root           = C:\Users\psioda\Documents\Research Papers Temp\bayesDesignTreatment\sas_programs_github;*/
+32         /*%let resPath        = &root.\data\simulation_results\calculate_power;*/
+33         
+34         %let root           = /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment;
+35         %let resPath        = &root./data/simulation_results/calculate_power;
+36         
+37         libname _all_ clear;
+38         libname results "&resPath.";
+NOTE: Libref RESULTS was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/simulation_results/calculate_power
+39         
+40         ** read in results from the first stage simulations;
+41         data results.combined_calc_power;
+42          set results.calc_: indsname=ds;
+43           dsName = ds;
+44         run;
+
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00001.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00002.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00003.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00004.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00005.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00006.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00007.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00008.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00009.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00010.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00011.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00012.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00013.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00014.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00015.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00016.
+3                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00017.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00018.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00019.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00020.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00021.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00022.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00023.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00024.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00025.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00026.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00027.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00028.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00029.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00030.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00031.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00032.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00033.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00034.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00035.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00036.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00037.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00038.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00039.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00040.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00041.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00042.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00043.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00044.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00045.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00046.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00047.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00048.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00049.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00050.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00051.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00052.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00053.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00054.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00055.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00056.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00057.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00058.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00059.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00060.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00061.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00062.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00063.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00064.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00065.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00066.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00067.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00068.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00069.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00070.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00071.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00072.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00073.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00074.
+4                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00075.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00076.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00077.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00078.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00079.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00080.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00081.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00082.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00083.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00084.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00085.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00086.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00087.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00088.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00089.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00090.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00091.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00092.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00093.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00094.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00095.
+NOTE: There were 2 observations read from the data set RESULTS.CALC_POWER_00096.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00097.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00098.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00099.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00100.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00101.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00102.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00103.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00104.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00105.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00106.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00107.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00108.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00109.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00110.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00111.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00112.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00113.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00114.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00115.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00116.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00117.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00118.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00119.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00120.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00121.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00122.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00123.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00124.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00125.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00126.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00127.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00128.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00129.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00130.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00131.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00132.
+5                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00133.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00134.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00135.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00136.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00137.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00138.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00139.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00140.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00141.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00142.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00143.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00144.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00145.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00146.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00147.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00148.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00149.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00150.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00151.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00152.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00153.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00154.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00155.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00156.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00157.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00158.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00159.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00160.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00161.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00162.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00163.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00164.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00165.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00166.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00167.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00168.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00169.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00170.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00171.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00172.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00173.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00174.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00175.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00176.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00177.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00178.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00179.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00180.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00181.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00182.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00183.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00184.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00185.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00186.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00187.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00188.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00189.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00190.
+6                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00191.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00192.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00193.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00194.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00195.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00196.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00197.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00198.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00199.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00200.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00201.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00202.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00203.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00204.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00205.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00206.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00207.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00208.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00209.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00210.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00211.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00212.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00213.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00214.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00215.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00216.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00217.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00218.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00219.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00220.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00221.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00222.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00223.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00224.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00225.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00226.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00227.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00228.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00229.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00230.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00231.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00232.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00233.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00234.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00235.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00236.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00237.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00238.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00239.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00240.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00241.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00242.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00243.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00244.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00245.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00246.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00247.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00248.
+7                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00249.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00250.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00251.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00252.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00253.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00254.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00255.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00256.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00257.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00258.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00259.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00260.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00261.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00262.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00263.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00264.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00265.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00266.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00267.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00268.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00269.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00270.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00271.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00272.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00273.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00274.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00275.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00276.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00277.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00278.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00279.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00280.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00281.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00282.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00283.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00284.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00285.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00286.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00287.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00288.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00289.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00290.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00291.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00292.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00293.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00294.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00295.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00296.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00297.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00298.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00299.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00300.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00301.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00302.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00303.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00304.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00305.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00306.
+8                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00307.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00308.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00309.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00310.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00311.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00312.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00313.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00314.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00315.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00316.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00317.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00318.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00319.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00320.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00321.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00322.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00323.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00324.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00325.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00326.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00327.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00328.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00329.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00330.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00331.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00332.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00333.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00334.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00335.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00336.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00337.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00338.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00339.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00340.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00341.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00342.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00343.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00344.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00345.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00346.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00347.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00348.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00349.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00350.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00351.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00352.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00353.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00354.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00355.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00356.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00357.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00358.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00359.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00360.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00361.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00362.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00363.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00364.
+9                                                          The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00365.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00366.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00367.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00368.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00369.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00370.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00371.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00372.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00373.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00374.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00375.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00376.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00377.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00378.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00379.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00380.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00381.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00382.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00383.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00384.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00385.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00386.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00387.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00388.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00389.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00390.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00391.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00392.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00393.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00394.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00395.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00396.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00397.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00398.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00399.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00400.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00401.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00402.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00403.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00404.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00405.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00406.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00407.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00408.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00409.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00410.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00411.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00412.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00413.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00414.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00415.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00416.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00417.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00418.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00419.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00420.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00421.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00422.
+10                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00423.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00424.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00425.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00426.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00427.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00428.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00429.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00430.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00431.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00432.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00433.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00434.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00435.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00436.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00437.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00438.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00439.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00440.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00441.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00442.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00443.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00444.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00445.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00446.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00447.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00448.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00449.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00450.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00451.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00452.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00453.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00454.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00455.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00456.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00457.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00458.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00459.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00460.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00461.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00462.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00463.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00464.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00465.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00466.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00467.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00468.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00469.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00470.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00471.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00472.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00473.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00474.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00475.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00476.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00477.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00478.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00479.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00480.
+11                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00481.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00482.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00483.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00484.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00485.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00486.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00487.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00488.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00489.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00490.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00491.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00492.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00493.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00494.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00495.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00496.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00497.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00498.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00499.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00500.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00501.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00502.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00503.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00504.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00505.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00506.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00507.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00508.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00509.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00510.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00511.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00512.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00513.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00514.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00515.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00516.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00517.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00518.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00519.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00520.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00521.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00522.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00523.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00524.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00525.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00526.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00527.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00528.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00529.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00530.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00531.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00532.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00533.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00534.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00535.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00536.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00537.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00538.
+12                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00539.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00540.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00541.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00542.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00543.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00544.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00545.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00546.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00547.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00548.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00549.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00550.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00551.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00552.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00553.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00554.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00555.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00556.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00557.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00558.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00559.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00560.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00561.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00562.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00563.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00564.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00565.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00566.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00567.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00568.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00569.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00570.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00571.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00572.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00573.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00574.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00575.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00576.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00577.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00578.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00579.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00580.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00581.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00582.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00583.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00584.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00585.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00586.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00587.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00588.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00589.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00590.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00591.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00592.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00593.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00594.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00595.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00596.
+13                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00597.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00598.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00599.
+NOTE: There were 1 observations read from the data set RESULTS.CALC_POWER_00600.
+NOTE: The data set RESULTS.COMBINED_CALC_POWER has 696 observations and 10 variables.
+NOTE: DATA statement used (Total process time):
+      real time           1.30 seconds
+      cpu time            0.67 seconds
+      
+
+44       !     proc sort; by category alpha_targ nsp asp shareblh a0 nuTarget; run;
+
+NOTE: There were 696 observations read from the data set RESULTS.COMBINED_CALC_POWER.
+NOTE: The data set RESULTS.COMBINED_CALC_POWER has 696 observations and 10 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+      
+
+45         
+46         ** output extra values of sample size for interpolation;
+47         data temp;
+48          set results.combined_calc_power;
+49          by category alpha_targ nsp asp shareblh a0 nuTarget;
+50          output;
+51         
+52            nuTarget + 5;
+53            rejRate = .;
+54            a0 = .;
+55            output;
+56         
+57         run;
+
+NOTE: There were 696 observations read from the data set RESULTS.COMBINED_CALC_POWER.
+NOTE: The data set WORK.TEMP has 1392 observations and 10 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+58         
+59         ** use PROC LOESS to smooth estimated a0 values;
+60         proc loess data = temp;
+61          by category alpha_targ nsp asp shareblh ;
+62          model a0 = nuTarget;
+63          output out = smoothed_a0(drop=SmoothingParameter depvar obs) p=smooth_a0;
+64         run;
+
+NOTE: The data set WORK.SMOOTHED_A0 has 1392 observations and 11 variables.
+NOTE: The PROCEDURE LOESS printed pages 1-36.
+NOTE: PROCEDURE LOESS used (Total process time):
+      real time           0.11 seconds
+      cpu time            0.05 seconds
+      
+
+65         
+66         ** use PROC LOESS to smooth estimated rejection rates;
+67         proc loess data = smoothed_a0;
+14                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+68          by category alpha_targ nsp asp shareblh ;
+69          model rejRate = nuTarget;
+70          output out = smoothed_rejRate(drop=SmoothingParameter depvar obs where=(rejRate=.)) p=smooth_rejRate;
+71         run;
+
+NOTE: The data set WORK.SMOOTHED_REJRATE has 696 observations and 12 variables.
+NOTE: The PROCEDURE LOESS printed pages 37-72.
+NOTE: PROCEDURE LOESS used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.03 seconds
+      
+
+72         
+73         
+74         
+75         ** calculate the optimal value of a0 for each simulation setting;
+76         data selected;
+77          set smoothed_rejRate;
+78          by category alpha_targ nsp asp shareblh ;
+79          *where find(asp,'wrong','i')=0;
+80         
+81           power_targ = 0.80;
+82         
+83         
+84           diff = abs(power_targ-smooth_rejRate);
+85           below = (smooth_rejRate<power_targ);
+86         
+87           drop a0;
+88           rename smooth_a0 = a0;
+89         run;
+
+NOTE: There were 696 observations read from the data set WORK.SMOOTHED_REJRATE.
+NOTE: The data set WORK.SELECTED has 696 observations and 14 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+90         
+91         proc sort data = selected nodupkey dupout=dup;
+92          by category alpha_targ nsp asp shareblh diff below;
+93         run;
+
+NOTE: There were 696 observations read from the data set WORK.SELECTED.
+NOTE: 0 observations with duplicate key values were deleted.
+NOTE: The data set WORK.DUP has 0 observations and 14 variables.
+NOTE: The data set WORK.SELECTED has 696 observations and 14 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+94         
+95         proc sort data = selected out = selected_2(keep = category alpha_targ nsp asp shareblh a0 nuTarget smooth_rejRate)
+95       ! nodupkey;
+96          by category alpha_targ nsp asp shareblh ;
+97         run;
+
+15                                                         The SAS System                          09:48 Wednesday, January 10, 2018
+
+NOTE: There were 696 observations read from the data set WORK.SELECTED.
+NOTE: 684 observations with duplicate key values were deleted.
+NOTE: The data set WORK.SELECTED_2 has 12 observations and 8 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+98         
+99         
+100        data results.calculated_power;
+101         retain  category alpha_targ nsp asp shareblh ;
+102         set selected_2;
+103         rename smooth_rejRate = power;
+104        run;
+
+NOTE: There were 12 observations read from the data set WORK.SELECTED_2.
+NOTE: The data set RESULTS.CALCULATED_POWER has 12 observations and 8 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+105        
+106        /*
+107        
+108        ods html;
+109        proc contents data =  results.calculated_power varnum; run; quit;
+110        
+111        */
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+NOTE: The SAS System used:
+      real time           1.74 seconds
+      cpu time            0.87 seconds
+      

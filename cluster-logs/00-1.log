@@ -1,0 +1,124 @@
+1                                                          The SAS System                             19:37 Tuesday, January 9, 2018
+
+NOTE: Copyright (c) 2002-2012 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software 9.4 (TS1M3) 
+      Licensed to UNIVERSITY OF NORTH CAROLINA CHAPEL HILL - SFA T&R, Site 70084073.
+NOTE: This session is executing on the Linux 3.10.0-693.5.2.el7.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Updated analytical products:
+      
+      SAS/STAT 14.1
+      SAS/ETS 14.1
+      SAS/OR 14.1
+      SAS/IML 14.1
+      SAS/QC 14.1
+
+NOTE: Additional host information:
+
+ Linux LIN X64 3.10.0-693.5.2.el7.x86_64 #1 SMP Fri Oct 13 10:46:25 EDT 2017 x86_64 Red Hat Enterprise Linux Server release 7.4 
+      (Maipo) 
+
+You are running SAS 9. Some SAS 8 files will be automatically converted 
+by the V9 engine; others are incompatible.  Please see 
+http://support.sas.com/rnd/migration/planning/platform/64bit.html
+
+PROC MIGRATE will preserve current SAS file attributes and is 
+recommended for converting all your SAS libraries from any 
+SAS 8 release to SAS 9.  For details and examples, please see
+http://support.sas.com/rnd/migration/index.html
+
+
+This message is contained in the SAS news file, and is presented upon
+initialization.  Edit the file "news" in the "misc/base" directory to
+display site-specific news and information in the program log.
+The command line option "-nonews" will prevent this display.
+
+
+
+
+NOTE: SAS initialization used:
+      real time           3.85 seconds
+      cpu time            0.04 seconds
+      
+1          /*
+2          Program Name: 00_process_e1684_data.sas
+3          Program Creator: Matthew Psioda;
+4          
+5          This SAS program reads in the raw data file (named mina-e1684-e1690.txt), subsets down to the E1684 that was
+6          used for the case study presented in the paper, and then creates a subject-level SAS dataset that is stored
+7          in the folder: &root.\data\raw_data (RAWOUT SAS library)
+8          
+9          */
+10         
+11         %let root        = /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment;
+12         %let rawDataPath = &root./data/raw_data;
+13         
+14         libname rawout "&rawDataPath.";
+NOTE: Libref RAWOUT was successfully assigned as follows: 
+      Engine:        V9 
+2                                                          The SAS System                             19:37 Tuesday, January 9, 2018
+
+      Physical Name: /nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/raw_data
+15         
+16         data rawout.e1684;
+17          infile "&rawDataPath/mina-e1684-e1690.txt" dlm=' ' missover firstobs=2;
+18          input case study age trt sex perform nodes breslow stage failtime rfscens survtime scens;
+19         
+20           ** one subject had a failure time of zero and this
+21              code sets the value to something negligible for processing;
+22           if failtime = 0 then failtime=1e-5;
+23         
+24           ** remove e1690 data;
+25           if study = 1684;
+26         run;
+
+NOTE: The infile "/nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/raw_data/mina-e1684-e1690.txt" is:
+      Filename=/nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/raw_data/mina-e1684-e1690.txt,
+      Owner Name=psioda,Group Name=its_undrgrad_psx,
+      Access Permission=-rw-r--r--,
+      Last Modified=02Nov2016:11:31:42,
+      File Size (bytes)=91264
+
+NOTE: 712 records were read from the infile 
+      "/nas/longleaf/home/psioda/stat-projects/bayesDesignTreatment/data/raw_data/mina-e1684-e1690.txt".
+      The minimum record length was 127.
+      The maximum record length was 127.
+NOTE: The data set RAWOUT.E1684 has 285 observations and 13 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.25 seconds
+      cpu time            0.02 seconds
+      
+
+27         
+28           ** the example in the paper is based on a complete case analysis
+29              restricted to stage 4 melanoma patients;
+30         data rawout.e1684_stage4;
+31          set rawout.e1684;
+32          where stage = 4 and nodes>.;
+33         
+34          if nodes <= 2 then riskStratum = 1;
+35          else if nodes > 2 then riskStratum = 2;
+36         
+37          simStudy = 1;
+38          censor = 1-rfscens;
+39          keep trt nodes failtime censor riskStratum simStudy;
+40           rename failtime = obsTime trt = x1 ;
+41         run;
+
+NOTE: There were 167 observations read from the data set RAWOUT.E1684.
+      WHERE (stage=4) and (nodes>.);
+NOTE: The data set RAWOUT.E1684_STAGE4 has 167 observations and 6 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.06 seconds
+      cpu time            0.00 seconds
+      
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+NOTE: The SAS System used:
+      real time           4.23 seconds
+3                                                          The SAS System                             19:37 Tuesday, January 9, 2018
+
+      cpu time            0.07 seconds
+      
